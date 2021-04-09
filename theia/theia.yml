@@ -1,0 +1,75 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: theia
+  labels:
+    app: theia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: theia
+  template:
+    metadata:
+      labels:
+        app: theia
+    spec:
+      securityContext:
+        runAsUser: 1000
+      containers:
+      - name: theia
+        image: theiaide/theia:0.11.0
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+        - name: project
+          mountPath: /home/project
+          readOnly: false
+      volumes:
+      - name: project
+        persistentVolumeClaim:
+          claimName: hostpath-pvc
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv-local
+  labels:
+    type: local
+spec:
+  storageClassName: local
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/home/admin/k8s-o11y-workshop"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: hostpath-pvc
+spec:
+  storageClassName: local
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      type: local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: theia-service
+spec:
+  selector:
+    app: theia
+  ports:
+  - protocol: TCP
+    port: 3000
+    nodePort: 30083
+  type: LoadBalancer
